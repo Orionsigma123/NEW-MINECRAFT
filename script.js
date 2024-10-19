@@ -4,6 +4,8 @@ let chunkSize = 16; // Size of each chunk
 let world = {}; // Store generated chunks
 let player; // Player object
 let inventory = []; // Player inventory
+let keys = {}; // Track pressed keys
+let velocity = new THREE.Vector3(); // Player velocity
 
 init();
 generateTerrain();
@@ -12,16 +14,28 @@ animate();
 function init() {
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    renderer = new THREE.WebGLRenderer();
+    renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    controls = new THREE.OrbitControls(camera, renderer.domElement);
-    camera.position.set(0, 10, 20);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.25;
-    controls.screenSpacePanning = false;
+    controls = new THREE.PointerLockControls(camera);
+    scene.add(controls.getObject());
 
+    // Event listener for mouse lock
+    document.addEventListener('click', () => {
+        controls.lock();
+    });
+
+    // Handle key presses
+    document.addEventListener('keydown', (event) => {
+        keys[event.code] = true;
+    });
+
+    document.addEventListener('keyup', (event) => {
+        keys[event.code] = false;
+    });
+
+    camera.position.set(0, 10, 20);
     window.addEventListener('resize', onWindowResize, false);
 }
 
@@ -60,5 +74,33 @@ function createChunk(x, z) {
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
+
+    // Player movement
+    const speed = 0.1;
+    if (keys['KeyW']) {
+        velocity.z = -speed;
+    } else if (keys['KeyS']) {
+        velocity.z = speed;
+    } else {
+        velocity.z = 0;
+    }
+
+    if (keys['KeyA']) {
+        velocity.x = -speed;
+    } else if (keys['KeyD']) {
+        velocity.x = speed;
+    } else {
+        velocity.x = 0;
+    }
+
+    // Move the player
+    const direction = new THREE.Vector3();
+    controls.getDirection(direction);
+    direction.y = 0; // Prevent upward/downward movement
+    direction.normalize(); // Ensure consistent speed regardless of direction
+    const move = new THREE.Vector3();
+    move.copy(direction).multiply(velocity);
+    controls.getObject().position.add(move);
+
     renderer.render(scene, camera);
 }
